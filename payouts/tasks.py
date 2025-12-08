@@ -1,7 +1,9 @@
 from __future__ import annotations
 
+import json
 import logging
 from decimal import Decimal
+from urllib import error, request
 
 from celery import shared_task
 from django.conf import settings
@@ -52,3 +54,41 @@ def finalize_payout(self, payout_id: str) -> None:
     else:
         payout.mark_completed()
         logger.info("Payout %s processed successfully.", payout_id)
+
+    if payout.callback_url:
+        send_payout_webhook.delay(str(payout.id))
+
+
+@shared_task(bind=True, max_retries=2, default_retry_delay=10)
+def send_payout_webhook(self, payout_id: str) -> None:
+    try:
+        payout = Payout.objects.get(id=payout_id)
+    except Payout.DoesNotExist:
+        logger.warning("Webhook skipped: payout %s missing.", payout_id)
+        return
+
+    if not payout.callback_url:
+        return
+
+    data = {
+        "payout_id": str(payout.id),
+        "status": payout.status,
+        "amount": str(payout.amount),
+        "currency": payout.currency,
+        "updated_at": payout.updated_at.isoformat(),
+    }
+
+    body = json.dumps(data).encode("utf-8")
+    headers = {"Content-Type": "application/json"}
+    request_obj = request.Request(
+        payout.callback_url,
+        data=body,
+        headers=headers,
+        method="POST",
+    )
+
+    try:
+        with request.urlopen(request_obj, timeout=settings.WEBHOOK_TIMEOUT_SECONDS):
+            logger.info("Webhook sent for payout %s", payout_id)
+    except error.URLError as exc:
+        logger.error("Webhook error for payout %s: %s", payout_id, exc)

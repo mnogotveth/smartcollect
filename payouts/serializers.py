@@ -30,6 +30,7 @@ class PayoutSerializer(serializers.ModelSerializer):
             "recipient_account",
             "status",
             "description",
+            "callback_url",
             "created_at",
             "updated_at",
         ]

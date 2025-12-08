@@ -50,6 +50,7 @@ class Payout(models.Model):
         default=PayoutStatus.PENDING,
     )
     description = models.CharField(max_length=255, blank=True)
+    callback_url = models.URLField(max_length=255, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

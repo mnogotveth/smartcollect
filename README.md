@@ -19,6 +19,10 @@ python manage.py runserver 0.0.0.0:8000  # запуск приложения
 celery -A config worker -l info          # запуск Celery worker'а во втором терминале
 ```
 
+> Примечание: ручной запуск требует живых PostgreSQL/Redis в системе. На Windows или в чистой среде быстрее и надёжнее использовать `docker compose up`, где база, брокер, веб и worker поднимаются автоматически.
+
+Переменные окружения: `DB_*` для PostgreSQL, `CELERY_BROKER_URL`/`CELERY_RESULT_BACKEND`, `PAYOUT_PROCESSING_DELAY_SECONDS`  и `WEBHOOK_TIMEOUT_SECONDS`.
+
 ### Makefile
 
 - `make install` — установить зависимости.
@@ -42,6 +46,7 @@ docker compose up --build web worker
 ### API
 
 - `POST /api/payouts/` — создать заявку (валидация + постановка задачи в Celery).
+- `callback_url` в теле запроса — необязательный webhook: после завершения платежа сервис отправит POST с JSON (`payout_id`, `status`, `amount`) на указанный URL.
 - `GET /api/payouts/` — список с поиском и сортировкой.
 - `GET /api/payouts/{id}/` — детали заявки.
 - `PATCH /api/payouts/{id}/` — частичное обновление (статус/описание).

@@ -7,8 +7,10 @@ from django.contrib.auth import get_user_model
 from django.urls import reverse
 from rest_framework import status
 from rest_framework.test import APITestCase
+from django.test import TestCase
 
 from payouts.models import CurrencyChoices, Payout, PayoutStatus
+from payouts.tasks import finalize_payout
 
 
 class PayoutAPITestCase(APITestCase):
@@ -54,3 +56,20 @@ class PayoutAPITestCase(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         payout = Payout.objects.get()
         mock_delay.assert_called_once_with(str(payout.id))
+
+
+class PayoutTaskTestCase(TestCase):
+    def setUp(self) -> None:
+        self.payout = Payout.objects.create(
+            amount="100.00",
+            currency=CurrencyChoices.USD,
+            recipient_name="Hook",
+            recipient_account="ACC-777",
+            status=PayoutStatus.PROCESSING,
+            callback_url="https://example.com/webhook",
+        )
+
+    @mock.patch("payouts.tasks.send_payout_webhook.delay")
+    def test_finalize_triggers_webhook(self, mock_webhook: mock.Mock) -> None:
+        finalize_payout.apply(args=(str(self.payout.id),))
+        mock_webhook.assert_called_once_with(str(self.payout.id))
