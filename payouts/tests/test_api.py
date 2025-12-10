@@ -57,6 +57,36 @@ class PayoutAPITestCase(APITestCase):
         payout = Payout.objects.get()
         mock_delay.assert_called_once_with(str(payout.id))
 
+    def test_patch_updates_status(self) -> None:
+        payout = Payout.objects.create(
+            amount="55.00",
+            currency=CurrencyChoices.EUR,
+            recipient_name="Carol",
+            recipient_account="CAROL-123",
+        )
+        url = reverse("payout-detail", args=[payout.id])
+
+        response = self.client.patch(url, {"status": PayoutStatus.CANCELLED}, format="json")
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        payout.refresh_from_db()
+        self.assertEqual(payout.status, PayoutStatus.CANCELLED)
+
+    @mock.patch("payouts.views.process_payout.delay")
+    def test_create_payout_invalid_currency(self, mock_delay: mock.Mock) -> None:
+        payload = {
+            "amount": "10.00",
+            "currency": "ABC",
+            "recipient_name": "Dave",
+            "recipient_account": "ACC-XYZ",
+        }
+
+        response = self.client.post(self.list_url, payload, format="json")
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("currency", response.data)
+        mock_delay.assert_not_called()
+
 
 class PayoutTaskTestCase(TestCase):
     def setUp(self) -> None:

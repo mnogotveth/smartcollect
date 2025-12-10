@@ -71,6 +71,7 @@ make test или python manage.py test
 5. **Запуск сервисов.**  
    - Django: `gunicorn config.wsgi:application --bind 0.0.0.0:8000` за reverse‑proxy (nginx/Traefik) с TLS, health‑check'ами и логированием.  
    - Celery: `celery -A config worker -l info` (несколько экземпляров при необходимости) и, опционально, `celery -A config beat -l info` для расписаний.  
+   - Docker: тот же образ из CI можно раскатывать одной командой `docker compose up -d` (web/worker/db/redis) или через Kubernetes/Swarm, достаточно задать переменные среды/секреты.
 6. **Наблюдаемость и отказоустойчивость.** Настроить мониторинг (логирование уже структурировано), перезапуски через orchestrator (systemd, Supervisor, Kubernetes Deployments), алерты на неудачные таски.
 
 Такой процесс обеспечивает воспроизводимость окружения, отделяет веб‑трафик от фоновых задач и даёт минимальный набор шагов для вывода сервиса в прод.
